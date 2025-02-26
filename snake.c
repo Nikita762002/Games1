@@ -1,36 +1,23 @@
-#include <ncurses.h>
-#include <stdlib.h>
-#include <time.h>
-#include <unistd.h>
+#include "snake.h"
 
-#define WIDTH 40
-#define HEIGHT 20
-
-int x, y, fruitX, fruitY, score;
-int tailX[100], tailY[100];
-int nTail;
-enum eDirection { STOP = 0, LEFT, RIGHT, UP, DOWN };
-enum eDirection dir;
-
-bool gameOver;
-
-void Setup() {
+void Setup(GameState *state) {
     initscr();
     clear();
     noecho();
     cbreak();
     curs_set(0);
 
-    gameOver = false;
-    dir = STOP;
-    x = WIDTH / 2;
-    y = HEIGHT / 2;
-    fruitX = rand() % WIDTH;
-    fruitY = rand() % HEIGHT;
-    score = 0;
+    state->gameOver = false;
+    state->dir = STOP;
+    state->x = WIDTH / 2;
+    state->y = HEIGHT / 2;
+    state->fruitX = rand() % WIDTH;
+    state->fruitY = rand() % HEIGHT;
+    state->score = 0;
+    state->nTail = 0;
 }
 
-void Draw() {
+void Draw(const GameState *state) {
     clear();
 
     for (int i = 0; i < WIDTH + 2; i++)
@@ -40,14 +27,14 @@ void Draw() {
 
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
-            if (i == y && j == x)
+            if (i == state->y && j == state->x)
                 mvprintw(i + 1, j + 1, "O");
-            else if (i == fruitY && j == fruitX)
+            else if (i == state->fruitY && j == state->fruitX)
                 mvprintw(i + 1, j + 1, "F");
             else {
                 bool print = false;
-                for (int k = 0; k < nTail; k++) {
-                    if (tailX[k] == j && tailY[k] == i) {
+                for (int k = 0; k < state->nTail; k++) {
+                    if (state->tailX[k] == j && state->tailY[k] == i) {
                         mvprintw(i + 1, j + 1, "o");
                         print = true;
                     }
@@ -63,11 +50,11 @@ void Draw() {
     for (int i = 0; i < WIDTH + 2; i++)
         mvprintw(HEIGHT + 1, i, "#");
 
-    mvprintw(HEIGHT + 2, 0, "Score: %d", score);
+    mvprintw(HEIGHT + 2, 0, "Score: %d", state->score);
     refresh();
 }
 
-void Input() {
+void Input(GameState *state) {
     keypad(stdscr, TRUE);
     halfdelay(1);
 
@@ -75,86 +62,87 @@ void Input() {
 
     switch (c) {
         case KEY_LEFT:
-            if (dir != RIGHT)
-                dir = LEFT;
+            if (state->dir != RIGHT)
+                state->dir = LEFT;
             break;
         case KEY_RIGHT:
-            if (dir != LEFT)
-                dir = RIGHT;
+            if (state->dir != LEFT)
+                state->dir = RIGHT;
             break;
         case KEY_UP:
-            if (dir != DOWN)
-                dir = UP;
+            if (state->dir != DOWN)
+                state->dir = UP;
             break;
         case KEY_DOWN:
-            if (dir != UP)
-                dir = DOWN;
+            if (state->dir != UP)
+                state->dir = DOWN;
             break;
         case 'x':
-            case 'X':
-            case 'q':
-            case 'Q':
-                gameOver = true;
-                break;
+        case 'X':
+        case 'q':
+        case 'Q':
+            state->gameOver = true;
+            break;
     }
 }
 
-void Logic() {
-    int prevX = tailX[0];
-    int prevY = tailY[0];
+void Logic(GameState *state) {
+    int prevX = state->tailX[0];
+    int prevY = state->tailY[0];
     int prev2X, prev2Y;
-    tailX[0] = x;
-    tailY[0] = y;
+    state->tailX[0] = state->x;
+    state->tailY[0] = state->y;
 
-    for (int i = 1; i < nTail; i++) {
-        prev2X = tailX[i];
-        prev2Y = tailY[i];
-        tailX[i] = prevX;
-        tailY[i] = prevY;
+    for (int i = 1; i < state->nTail; i++) {
+        prev2X = state->tailX[i];
+        prev2Y = state->tailY[i];
+        state->tailX[i] = prevX;
+        state->tailY[i] = prevY;
         prevX = prev2X;
         prevY = prev2Y;
     }
 
-    switch (dir) {
+    switch (state->dir) {
         case LEFT:
-            x--;
+            state->x--;
             break;
         case RIGHT:
-            x++;
+            state->x++;
             break;
         case UP:
-            y--;
+            state->y--;
             break;
         case DOWN:
-            y++;
+            state->y++;
             break;
         default:
             break;
     }
 
-    if (x >= WIDTH) x = 0; else if (x < 0) x = WIDTH - 1;
-    if (y >= HEIGHT) y = 0; else if (y < 0) y = HEIGHT - 1;
+    if (state->x >= WIDTH) state->x = 0; else if (state->x < 0) state->x = WIDTH - 1;
+    if (state->y >= HEIGHT) state->y = 0; else if (state->y < 0) state->y = HEIGHT - 1;
 
-    for (int i = 0; i < nTail; i++)
-        if (tailX[i] == x && tailY[i] == y)
-            gameOver = true;
+    for (int i = 0; i < state->nTail; i++)
+        if (state->tailX[i] == state->x && state->tailY[i] == state->y)
+            state->gameOver = true;
 
-    if (x == fruitX && y == fruitY) {
-        score += 10;
-        fruitX = rand() % WIDTH;
-        fruitY = rand() % HEIGHT;
-        nTail++;
+    if (state->x == state->fruitX && state->y == state->fruitY) {
+        state->score += 10;
+        state->fruitX = rand() % WIDTH;
+        state->fruitY = rand() % HEIGHT;
+        state->nTail++;
     }
 }
 
 int main() {
     srand(time(NULL));
-    Setup();
+    GameState state;
+    Setup(&state);
 
-    while (!gameOver) {
-        Draw();
-        Input();
-        Logic();
+    while (!state.gameOver) {
+        Draw(&state);
+        Input(&state);
+        Logic(&state);
         usleep(100000); // Задержка для управления скоростью змейки
     }
 
